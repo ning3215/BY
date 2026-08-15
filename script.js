@@ -136,7 +136,7 @@ function renderMusic() {
     <div class="music-empty">
       <span>${escapeText(music.provider || "网易云 / QQ音乐")}</span>
       <strong>${escapeText(music.title || "我们的歌单")}</strong>
-      <p>这块位置留给我们的背景音。等歌单接上以后，页面会自己唱起来。</p>
+      <p></p>
     </div>
   `;
 }
