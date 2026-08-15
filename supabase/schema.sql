@@ -232,6 +232,20 @@ with check (
   )
 );
 
+drop policy if exists "Couple can delete photos" on public.couple_photos;
+create policy "Couple can delete photos"
+on public.couple_photos
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.couple_profiles profile
+    where profile.user_id = auth.uid()
+      and profile.couple_id = couple_photos.couple_id
+  )
+);
+
 drop policy if exists "Couple can read places" on public.couple_places;
 create policy "Couple can read places"
 on public.couple_places
@@ -283,6 +297,20 @@ with check (
   )
 );
 
+drop policy if exists "Couple can delete places" on public.couple_places;
+create policy "Couple can delete places"
+on public.couple_places
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.couple_profiles profile
+    where profile.user_id = auth.uid()
+      and profile.couple_id = couple_places.couple_id
+  )
+);
+
 drop policy if exists "Couple can upload photos" on storage.objects;
 create policy "Couple can upload photos"
 on storage.objects
@@ -315,12 +343,28 @@ using (
   )
 );
 
+drop policy if exists "Couple can delete stored photos" on storage.objects;
+create policy "Couple can delete stored photos"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'couple-photos'
+  and name like '093f97bb-50be-4bab-9c06-b32d508e2410/%'
+  and exists (
+    select 1
+    from public.couple_profiles profile
+    where profile.user_id = auth.uid()
+      and profile.couple_id = '093f97bb-50be-4bab-9c06-b32d508e2410'
+  )
+);
+
 grant select on public.allowed_couple_members to authenticated;
 grant select, insert, update on public.couple_profiles to authenticated;
 grant select, insert on public.couple_messages to authenticated;
 grant select, insert on public.couple_notes to authenticated;
-grant select, insert on public.couple_photos to authenticated;
-grant select, insert, update on public.couple_places to authenticated;
+grant select, insert, delete on public.couple_photos to authenticated;
+grant select, insert, update, delete on public.couple_places to authenticated;
 
 do $$
 declare

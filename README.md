@@ -32,6 +32,8 @@ window.LOVE_SITE_CONFIG = {
 
 不要把 service_role key 放到前端。前端只使用 anon/publishable key，真正的私密权限由 Supabase RLS 控制。
 
+如果已经运行过旧版 SQL，也需要重新运行一次 `supabase/schema.sql`，这样照片墙和城市地图的删除权限才会生效。
+
 默认允许登录邮箱：
 
 - `1784078493@qq.com`
@@ -42,8 +44,8 @@ window.LOVE_SITE_CONFIG = {
 - 纪念日倒计时：恋爱开始日是 `2020-01-12`，自动计算恋爱天数和下一个周年纪念日。
 - 留言板/树洞：登录后可以把便签贴到墙上。
 - 共享歌单：在 `config.js` 填入网易云或 QQ 音乐的 iframe 嵌入地址。
-- 照片墙：登录后可以上传图片到 Supabase Storage 私有桶。
-- 城市地图：使用 Leaflet + OpenStreetMap 真实地图，点击地图位置添加城市，之后可以手动点亮或熄灭。
+- 照片墙：登录后可以上传图片到 Supabase Storage 私有桶，也可以删除已上传照片。
+- 城市地图：使用 Leaflet + OpenStreetMap 真实地图，点击地图位置添加城市，之后可以手动点亮、熄灭或删除地点。
 
 ## 自定义
 

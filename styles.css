@@ -680,10 +680,35 @@ textarea:focus {
   box-shadow: 0 16px 38px rgba(35, 33, 43, 0.1);
 }
 
+.photo-frame {
+  position: relative;
+}
+
 .photo-card img {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.photo-delete-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 999px;
+  background: rgba(35, 33, 43, 0.72);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(35, 33, 43, 0.2);
+}
+
+.photo-delete-button:hover {
+  background: #b42318;
 }
 
 .photo-card figcaption {
@@ -734,30 +759,44 @@ textarea:focus {
 .city-marker {
   position: relative;
   display: block;
-  width: 24px;
+  width: 34px;
+  margin: 4px;
   aspect-ratio: 1;
-  border: 3px solid #fff;
+  border: 4px solid #fff;
   border-radius: 50%;
-  background: var(--rose);
+  background: #e6536a;
   box-shadow:
-    0 0 0 9px rgba(230, 83, 106, 0.18),
-    0 0 30px rgba(230, 83, 106, 0.78),
-    0 10px 22px rgba(35, 33, 43, 0.22);
+    0 0 0 12px rgba(230, 83, 106, 0.18),
+    0 0 44px rgba(230, 83, 106, 0.86),
+    0 14px 26px rgba(35, 33, 43, 0.26);
+}
+
+.city-marker.lit {
+  animation: cityPulse 1.8s ease-in-out infinite;
 }
 
 .city-marker::after {
   content: "";
   position: absolute;
-  inset: 6px;
+  inset: 8px;
   border-radius: 50%;
   background: #fff;
 }
 
+.city-marker.lit::before,
+.city-marker.draft::before {
+  content: "";
+  position: absolute;
+  inset: -13px;
+  border-radius: 50%;
+  border: 2px solid rgba(230, 83, 106, 0.45);
+}
+
 .city-marker.dim {
   background: #667085;
-  opacity: 0.7;
+  opacity: 0.78;
   box-shadow:
-    0 0 0 7px rgba(102, 112, 133, 0.16),
+    0 0 0 8px rgba(102, 112, 133, 0.16),
     0 8px 18px rgba(35, 33, 43, 0.18);
 }
 
@@ -767,6 +806,23 @@ textarea:focus {
     0 0 0 9px rgba(27, 138, 132, 0.18),
     0 0 28px rgba(27, 138, 132, 0.7),
     0 10px 22px rgba(35, 33, 43, 0.22);
+}
+
+.city-marker.draft::before {
+  border-color: rgba(27, 138, 132, 0.48);
+}
+
+@keyframes cityPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: saturate(1);
+  }
+
+  50% {
+    transform: scale(1.14);
+    filter: saturate(1.2);
+  }
 }
 
 .city-popup {
@@ -786,7 +842,14 @@ textarea:focus {
   line-height: 1.5;
 }
 
+.city-popup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .city-popup button {
+  flex: 1 1 72px;
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -795,6 +858,20 @@ textarea:focus {
   font: inherit;
   font-weight: 900;
   cursor: pointer;
+}
+
+.city-popup button[data-popup-delete-place],
+.city-delete-button {
+  background: #fff;
+  border-color: rgba(180, 35, 24, 0.22);
+  color: #b42318;
+}
+
+.city-popup button[data-popup-delete-place]:hover,
+.city-delete-button:hover {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
 }
 
 .place-list {
@@ -813,8 +890,17 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.76);
 }
 
+.place-item.lit {
+  border-color: rgba(230, 83, 106, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 243, 236, 0.94));
+  box-shadow:
+    inset 4px 0 0 rgba(230, 83, 106, 0.86),
+    0 12px 28px rgba(230, 83, 106, 0.12);
+}
+
 .place-item.dim {
-  opacity: 0.64;
+  opacity: 0.72;
+  filter: grayscale(0.45);
 }
 
 .place-item strong {
@@ -829,6 +915,13 @@ textarea:focus {
   line-height: 1.6;
 }
 
+.city-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .city-light-button {
   min-width: 72px;
   min-height: 38px;
@@ -836,6 +929,15 @@ textarea:focus {
   border-radius: 999px;
   background: #fff;
   color: var(--teal);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.city-delete-button {
+  min-width: 72px;
+  min-height: 38px;
+  border-radius: 999px;
   font: inherit;
   font-weight: 900;
   cursor: pointer;
@@ -948,5 +1050,18 @@ footer {
 
   .message {
     max-width: 92%;
+  }
+
+  .place-item {
+    grid-template-columns: 1fr;
+  }
+
+  .city-actions {
+    justify-content: stretch;
+  }
+
+  .city-light-button,
+  .city-delete-button {
+    flex: 1 1 120px;
   }
 }

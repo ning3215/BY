@@ -216,15 +216,22 @@ async function renderPhotos(photos) {
 
     if (error) return "";
 
-    return `
-      <figure class="photo-card" data-photo-id="${escapeAttribute(photo.id)}">
-        <img src="${escapeAttribute(data.signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
-        <figcaption>${escapeText(photo.caption || "没有配文，也已经很好。")}</figcaption>
-      </figure>
-    `;
+    return renderPhotoCard(photo, data.signedUrl);
   }));
 
   photoGrid.innerHTML = cards.join("");
+}
+
+function renderPhotoCard(photo, signedUrl) {
+  return `
+    <figure class="photo-card" data-photo-id="${escapeAttribute(photo.id)}" data-photo-path="${escapeAttribute(photo.storage_path)}">
+      <div class="photo-frame">
+        <img src="${escapeAttribute(signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
+        <button class="photo-delete-button" type="button" data-delete-photo="${escapeAttribute(photo.id)}" data-photo-path="${escapeAttribute(photo.storage_path)}">删除</button>
+      </div>
+      <figcaption>${escapeText(photo.caption || "没有配文，也已经很好。")}</figcaption>
+    </figure>
+  `;
 }
 
 async function prependPhoto(photo) {
@@ -238,23 +245,16 @@ async function prependPhoto(photo) {
   const empty = photoGrid.querySelector(".empty-chat");
   if (empty) empty.remove();
 
-  const figure = document.createElement("figure");
-  figure.className = "photo-card";
-  figure.dataset.photoId = photo.id;
-  figure.innerHTML = `
-    <img src="${escapeAttribute(data.signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
-    <figcaption>${escapeText(photo.caption || "没有配文，也已经很好。")}</figcaption>
-  `;
-  photoGrid.prepend(figure);
+  photoGrid.insertAdjacentHTML("afterbegin", renderPhotoCard(photo, data.signedUrl));
 }
 
 function createCityIcon(isLit, isDraft = false) {
   return L.divIcon({
     className: "",
     html: `<span class="city-marker ${isDraft ? "draft" : isLit ? "lit" : "dim"}"></span>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -10]
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -16]
   });
 }
 
@@ -330,9 +330,12 @@ function renderPlaceItem(place) {
         <strong>${escapeText(place.title)}</strong>
         <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
       </div>
-      <button class="city-light-button" type="button" data-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
-        ${isLit ? "熄灭" : "点亮"}
-      </button>
+      <div class="city-actions">
+        <button class="city-light-button" type="button" data-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
+          ${isLit ? "熄灭" : "点亮"}
+        </button>
+        <button class="city-delete-button" type="button" data-delete-place="${escapeAttribute(place.id)}">删除</button>
+      </div>
     </article>
   `;
 }
@@ -351,16 +354,26 @@ function addPlacePin(place) {
     <div class="city-popup">
       <strong>${escapeText(place.title)}</strong>
       <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
-      <button type="button" data-popup-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
-        ${isLit ? "熄灭" : "点亮"}
-      </button>
+      <div class="city-popup-actions">
+        <button type="button" data-popup-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
+          ${isLit ? "熄灭" : "点亮"}
+        </button>
+        <button type="button" data-popup-delete-place="${escapeAttribute(place.id)}">删除</button>
+      </div>
     </div>
   `);
 
   marker.on("popupopen", (event) => {
-    const button = event.popup.getElement().querySelector("[data-popup-toggle-place]");
-    button?.addEventListener("click", () => {
-      togglePlaceLit(button.dataset.popupTogglePlace, button.dataset.nextLit === "true");
+    const popup = event.popup.getElement();
+    const toggleButton = popup.querySelector("[data-popup-toggle-place]");
+    const deleteButton = popup.querySelector("[data-popup-delete-place]");
+
+    toggleButton?.addEventListener("click", () => {
+      togglePlaceLit(toggleButton.dataset.popupTogglePlace, toggleButton.dataset.nextLit === "true");
+    });
+
+    deleteButton?.addEventListener("click", () => {
+      deletePlace(deleteButton.dataset.popupDeletePlace);
     });
   });
 
@@ -763,11 +776,72 @@ async function togglePlaceLit(placeId, nextLit) {
   setStatus(placeStatus, nextLit ? "城市亮起来了。" : "城市已经熄灭。");
 }
 
+async function deletePlace(placeId) {
+  if (!profile) return;
+  if (!window.confirm("确定要从地图上删除这个城市吗？")) return;
+
+  setStatus(placeStatus, "正在删除城市...");
+  const { error } = await client
+    .from("couple_places")
+    .delete()
+    .eq("id", placeId)
+    .eq("couple_id", config.coupleId);
+
+  if (error) {
+    setStatus(placeStatus, error.message, true);
+    return;
+  }
+
+  await loadPlaces();
+  setStatus(placeStatus, "城市已删除。");
+}
+
+async function deletePhoto(photoId, storagePath) {
+  if (!profile) return;
+  if (!window.confirm("确定要删除这张照片吗？")) return;
+
+  setStatus(photoStatus, "正在删除照片...");
+  const bucket = config.storageBucket || "couple-photos";
+  const storageResult = await client.storage.from(bucket).remove([storagePath]);
+
+  if (storageResult.error) {
+    setStatus(photoStatus, storageResult.error.message, true);
+    return;
+  }
+
+  const { error } = await client
+    .from("couple_photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("couple_id", config.coupleId);
+
+  if (error) {
+    setStatus(photoStatus, error.message, true);
+    return;
+  }
+
+  await loadPhotos();
+  setStatus(photoStatus, "照片已删除。");
+}
+
 placeList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-toggle-place]");
+  if (button) {
+    togglePlaceLit(button.dataset.togglePlace, button.dataset.nextLit === "true");
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-place]");
+  if (!deleteButton) return;
+
+  deletePlace(deleteButton.dataset.deletePlace);
+});
+
+photoGrid.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-delete-photo]");
   if (!button) return;
 
-  togglePlaceLit(button.dataset.togglePlace, button.dataset.nextLit === "true");
+  deletePhoto(button.dataset.deletePhoto, button.dataset.photoPath);
 });
 
 signOutButton.addEventListener("click", async () => {
