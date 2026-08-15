@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="一份写给彼此的情侣纪念小站，收藏日期、瞬间、约定和想念。">
+    <meta name="description" content="一份只属于两个人的情侣小站，收藏日期、瞬间、约定、情书和实时聊天。">
     <title>慢慢喜欢你</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,6 +19,7 @@
       <nav>
         <a href="#moments">瞬间</a>
         <a href="#promise">约定</a>
+        <a href="#chat">聊天</a>
         <a href="#letter">情书</a>
       </nav>
     </header>
@@ -35,8 +36,8 @@
             以及每一天都想重新说一遍的：我喜欢你。
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="#letter">打开情书</a>
-            <a class="button ghost" href="#moments">看看回忆</a>
+            <a class="button primary" href="#chat">进入我们的聊天室</a>
+            <a class="button ghost" href="#letter">打开情书</a>
           </div>
         </div>
       </section>
@@ -90,6 +91,59 @@
         </div>
       </section>
 
+      <section class="chat section" id="chat">
+        <div class="chat-heading">
+          <p class="eyebrow">Private room</p>
+          <h2>只有我们能看见的聊天</h2>
+          <p>登录后，消息会实时同步到两个人的设备。这里可以放晚安、想念、备忘和那些突然冒出来的小废话。</p>
+        </div>
+
+        <div class="chat-app" data-chat-app>
+          <div class="chat-auth" data-auth-panel>
+            <div>
+              <p class="eyebrow">Sign in</p>
+              <h3>先确认是我们的人</h3>
+              <p class="auth-copy">用你们在 Supabase 里允许的邮箱登录。第一次使用可以直接注册，同一个邮箱之后再登录即可。</p>
+            </div>
+            <form class="auth-form" data-auth-form>
+              <label>
+                昵称
+                <input type="text" name="displayName" autocomplete="nickname" maxlength="24" placeholder="比如：宝宝 / 小太阳">
+              </label>
+              <label>
+                邮箱
+                <input type="email" name="email" autocomplete="email" required placeholder="you@example.com">
+              </label>
+              <label>
+                密码
+                <input type="password" name="password" autocomplete="current-password" required minlength="6" placeholder="至少 6 位">
+              </label>
+              <div class="auth-actions">
+                <button class="button primary" type="submit" data-auth-mode="signin">登录</button>
+                <button class="button soft" type="button" data-auth-mode="signup">注册</button>
+              </div>
+              <p class="form-status" data-auth-status aria-live="polite"></p>
+            </form>
+          </div>
+
+          <div class="chat-room is-hidden" data-chat-room>
+            <div class="chat-room-header">
+              <div>
+                <span class="online-dot" aria-hidden="true"></span>
+                <strong data-current-user>我们的聊天室</strong>
+              </div>
+              <button class="icon-button" type="button" data-signout aria-label="退出登录">退出</button>
+            </div>
+            <div class="message-list" data-message-list aria-live="polite"></div>
+            <form class="message-form" data-message-form>
+              <input type="text" name="message" maxlength="600" autocomplete="off" placeholder="写一句只给对方看的话..." required>
+              <button class="button primary" type="submit">发送</button>
+            </form>
+            <p class="form-status" data-chat-status aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+
       <section class="letter section" id="letter">
         <div class="letter-paper">
           <p class="eyebrow">To my favorite person</p>
@@ -113,6 +167,8 @@
       <span>愿我们永远有话说，也永远听得见彼此。</span>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
