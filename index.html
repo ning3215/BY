@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="一份只属于两个人的情侣小站，收藏日期、瞬间、约定、情书和实时聊天。">
+    <meta name="description" content="一份只属于两个人的情侣小站，收藏纪念日、聊天、树洞、歌单、照片墙和足迹地图。">
     <title>慢慢喜欢你</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,9 +17,13 @@
         <span>慢慢喜欢你</span>
       </a>
       <nav>
+        <a href="#anniversary">纪念日</a>
         <a href="#moments">瞬间</a>
-        <a href="#promise">约定</a>
         <a href="#chat">聊天</a>
+        <a href="#notes">树洞</a>
+        <a href="#playlist">歌单</a>
+        <a href="#gallery">照片</a>
+        <a href="#map">足迹</a>
         <a href="#letter">情书</a>
       </nav>
     </header>
@@ -32,7 +36,7 @@
           <p class="eyebrow">For every ordinary day we choose each other</p>
           <h1>把喜欢写成一座小小的网站</h1>
           <p class="hero-copy">
-            这里存放第一次心动、一起走过的路、还没兑现的约定，
+            这里存放纪念日、聊天、悄悄话、歌单、照片和一起走过的地方，
             以及每一天都想重新说一遍的：我喜欢你。
           </p>
           <div class="hero-actions">
@@ -42,12 +46,25 @@
         </div>
       </section>
 
-      <section class="since-band" aria-label="在一起的时间">
-        <div>
+      <section class="since-band" id="anniversary" aria-label="纪念日倒计时">
+        <div class="since-main">
           <span class="metric" id="daysTogether">0</span>
           <span class="metric-label">天，仍然心动</span>
         </div>
-        <p>从 <time datetime="2024-05-20">2024.05.20</time> 开始，我们把日子过成了双人份的浪漫。</p>
+        <div class="anniversary-cards">
+          <article>
+            <span>恋爱开始</span>
+            <strong><time datetime="2020-01-12">2020.01.12</time></strong>
+          </article>
+          <article>
+            <span id="nextAnniversaryTitle">下一个纪念日</span>
+            <strong id="nextAnniversaryDate">--</strong>
+          </article>
+          <article>
+            <span>倒计时</span>
+            <strong><span id="nextAnniversaryCountdown">0</span> 天</strong>
+          </article>
+        </div>
       </section>
 
       <section class="moments section" id="moments">
@@ -141,6 +158,94 @@
             </form>
             <p class="form-status" data-chat-status aria-live="polite"></p>
           </div>
+        </div>
+      </section>
+
+      <section class="notes section" id="notes">
+        <div class="section-heading">
+          <p class="eyebrow">Secret notes</p>
+          <h2>留言板和树洞墙</h2>
+        </div>
+        <div class="notes-layout">
+          <form class="note-form panel" data-note-form>
+            <label>
+              写一张便签
+              <textarea name="body" maxlength="280" placeholder="今天想悄悄留下什么..." required></textarea>
+            </label>
+            <label>
+              颜色
+              <select name="tone">
+                <option value="rose">玫瑰粉</option>
+                <option value="mint">薄荷绿</option>
+                <option value="sun">暖阳黄</option>
+                <option value="sky">晚风蓝</option>
+              </select>
+            </label>
+            <button class="button primary" type="submit">贴到墙上</button>
+            <p class="form-status" data-note-status aria-live="polite"></p>
+          </form>
+          <div class="notes-wall" data-notes-wall aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="playlist section" id="playlist">
+        <div class="section-heading">
+          <p class="eyebrow">Shared songs</p>
+          <h2>共享歌单</h2>
+        </div>
+        <div class="playlist-grid" data-playlist-list></div>
+      </section>
+
+      <section class="gallery section" id="gallery">
+        <div class="section-heading">
+          <p class="eyebrow">Photo wall</p>
+          <h2>我们自己的照片墙</h2>
+        </div>
+        <form class="upload-form panel" data-photo-form>
+          <label>
+            选择照片
+            <input type="file" name="photo" accept="image/*" required>
+          </label>
+          <label>
+            一句话
+            <input type="text" name="caption" maxlength="80" placeholder="这张照片的瞬间">
+          </label>
+          <button class="button primary" type="submit">上传照片</button>
+          <p class="form-status" data-photo-status aria-live="polite"></p>
+        </form>
+        <div class="photo-grid" data-photo-grid aria-live="polite"></div>
+      </section>
+
+      <section class="footprints section" id="map">
+        <div class="footprint-copy">
+          <p class="eyebrow">Our map</p>
+          <h2>一起点亮去过的地方</h2>
+          <form class="place-form panel" data-place-form>
+            <label>
+              地点
+              <input type="text" name="title" maxlength="40" placeholder="比如：第一次约会的咖啡店" required>
+            </label>
+            <label>
+              日期
+              <input type="date" name="visitedOn">
+            </label>
+            <label>
+              备注
+              <input type="text" name="note" maxlength="100" placeholder="那天发生了什么">
+            </label>
+            <input type="hidden" name="x" value="50">
+            <input type="hidden" name="y" value="50">
+            <button class="button primary" type="submit">点亮这里</button>
+            <p class="form-status" data-place-status aria-live="polite"></p>
+          </form>
+        </div>
+        <div class="map-wrap">
+          <div class="memory-map" data-memory-map aria-label="足迹地图">
+            <span class="map-route one" aria-hidden="true"></span>
+            <span class="map-route two" aria-hidden="true"></span>
+            <button class="map-pin draft" type="button" data-draft-pin aria-label="新足迹位置"></button>
+          </div>
+          <div class="place-list" data-place-list></div>
         </div>
       </section>
 

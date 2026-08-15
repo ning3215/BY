@@ -1,9 +1,37 @@
-const startDate = new Date("2024-05-20T00:00:00+08:00");
+const config = window.LOVE_SITE_CONFIG || {};
+const startDateText = config.startDate || "2020-01-12";
+const startDate = new Date(`${startDateText}T00:00:00+08:00`);
 const today = new Date();
 const oneDay = 1000 * 60 * 60 * 24;
 const daysTogether = Math.max(1, Math.floor((today - startDate) / oneDay) + 1);
 
 document.getElementById("daysTogether").textContent = daysTogether.toLocaleString("zh-CN");
+
+function getNextAnniversary() {
+  const now = new Date();
+  const startMonth = startDate.getMonth();
+  const startDay = startDate.getDate();
+  let year = now.getFullYear();
+  let next = new Date(year, startMonth, startDay);
+
+  if (next < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+    year += 1;
+    next = new Date(year, startMonth, startDay);
+  }
+
+  const years = year - startDate.getFullYear();
+  const countdown = Math.max(0, Math.ceil((next - now) / oneDay));
+  return { next, years, countdown };
+}
+
+const anniversary = getNextAnniversary();
+document.getElementById("nextAnniversaryTitle").textContent = `下一个 ${anniversary.years} 周年`;
+document.getElementById("nextAnniversaryDate").textContent = new Intl.DateTimeFormat("zh-CN", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(anniversary.next);
+document.getElementById("nextAnniversaryCountdown").textContent = anniversary.countdown;
 
 const whispers = [
   "今天也想认真地偏爱你。",
@@ -22,14 +50,12 @@ button.addEventListener("click", () => {
   whisper.textContent = whispers[whisperIndex];
 });
 
-const config = window.LOVE_SITE_CONFIG || {};
 const supabaseReady = Boolean(
   window.supabase &&
   config.supabaseUrl &&
   config.supabaseAnonKey &&
   config.coupleId &&
-  !config.supabaseUrl.includes("your-project") &&
-  config.coupleId !== "00000000-0000-0000-0000-000000000000"
+  !config.supabaseUrl.includes("your-project")
 );
 
 const authPanel = document.querySelector("[data-auth-panel]");
@@ -41,20 +67,38 @@ const messageList = document.querySelector("[data-message-list]");
 const messageForm = document.querySelector("[data-message-form]");
 const currentUser = document.querySelector("[data-current-user]");
 const signOutButton = document.querySelector("[data-signout]");
+const noteForm = document.querySelector("[data-note-form]");
+const noteStatus = document.querySelector("[data-note-status]");
+const notesWall = document.querySelector("[data-notes-wall]");
+const playlistList = document.querySelector("[data-playlist-list]");
+const photoForm = document.querySelector("[data-photo-form]");
+const photoStatus = document.querySelector("[data-photo-status]");
+const photoGrid = document.querySelector("[data-photo-grid]");
+const placeForm = document.querySelector("[data-place-form]");
+const placeStatus = document.querySelector("[data-place-status]");
+const placeList = document.querySelector("[data-place-list]");
+const memoryMap = document.querySelector("[data-memory-map]");
+const draftPin = document.querySelector("[data-draft-pin]");
 
 let client = null;
 let session = null;
 let profile = null;
-let messagesChannel = null;
+let liveChannel = null;
 
 function setStatus(element, message, isError = false) {
+  if (!element) return;
   element.textContent = message;
   element.classList.toggle("error", isError);
 }
 
-function showChat(isSignedIn) {
-  authPanel.classList.toggle("is-hidden", isSignedIn);
-  chatRoom.classList.toggle("is-hidden", !isSignedIn);
+function escapeText(value) {
+  const div = document.createElement("div");
+  div.textContent = value ?? "";
+  return div.innerHTML;
+}
+
+function escapeAttribute(value) {
+  return escapeText(value).replaceAll('"', "&quot;");
 }
 
 function formatTime(value) {
@@ -66,10 +110,51 @@ function formatTime(value) {
   }).format(new Date(value));
 }
 
-function escapeText(value) {
-  const div = document.createElement("div");
-  div.textContent = value;
-  return div.innerHTML;
+function formatDate(value) {
+  if (!value) return "未写日期";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function showChat(isSignedIn) {
+  authPanel.classList.toggle("is-hidden", isSignedIn);
+  chatRoom.classList.toggle("is-hidden", !isSignedIn);
+}
+
+function setMemberFeaturesEnabled(isEnabled) {
+  [noteForm, photoForm, placeForm, messageForm].forEach((form) => {
+    form?.querySelectorAll("input, textarea, select, button").forEach((item) => {
+      item.disabled = !isEnabled;
+    });
+  });
+}
+
+function renderPlaylists() {
+  const playlists = Array.isArray(config.playlists) ? config.playlists : [];
+  playlistList.innerHTML = playlists.map((playlist) => {
+    if (playlist.embedUrl) {
+      return `
+        <article class="playlist-card">
+          <iframe
+            title="${escapeAttribute(playlist.title)}"
+            src="${escapeAttribute(playlist.embedUrl)}"
+            loading="lazy"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
+          </iframe>
+        </article>
+      `;
+    }
+
+    return `
+      <article class="playlist-card playlist-empty">
+        <strong>${escapeText(playlist.title)}</strong>
+        <span>${escapeText(playlist.provider)} 的位置已经留好。</span>
+      </article>
+    `;
+  }).join("");
 }
 
 function renderMessages(messages) {
@@ -103,6 +188,129 @@ function appendMessage(message, shouldScroll = true) {
 
   messageList.appendChild(article);
   if (shouldScroll) messageList.scrollTop = messageList.scrollHeight;
+}
+
+function renderNotes(notes) {
+  if (!notes.length) {
+    notesWall.innerHTML = '<p class="empty-chat">便签墙还空着。</p>';
+    return;
+  }
+
+  notesWall.innerHTML = notes.map((note, index) => `
+    <article class="note-card ${escapeAttribute(note.tone || "rose")}" style="--tilt: ${index % 2 ? "1.2deg" : "-1.1deg"}">
+      <p>${escapeText(note.body)}</p>
+      <span>${escapeText(note.display_name || "我们")} · ${formatTime(note.created_at)}</span>
+    </article>
+  `).join("");
+}
+
+function appendNote(note) {
+  const empty = notesWall.querySelector(".empty-chat");
+  if (empty) empty.remove();
+
+  const article = document.createElement("article");
+  article.className = `note-card ${note.tone || "rose"}`;
+  article.style.setProperty("--tilt", notesWall.children.length % 2 ? "1.2deg" : "-1.1deg");
+  article.innerHTML = `
+    <p>${escapeText(note.body)}</p>
+    <span>${escapeText(note.display_name || "我们")} · ${formatTime(note.created_at)}</span>
+  `;
+  notesWall.prepend(article);
+}
+
+async function renderPhotos(photos) {
+  if (!photos.length) {
+    photoGrid.innerHTML = '<p class="empty-chat">照片墙还在等第一张照片。</p>';
+    return;
+  }
+
+  const cards = await Promise.all(photos.map(async (photo) => {
+    const { data, error } = await client
+      .storage
+      .from(config.storageBucket || "couple-photos")
+      .createSignedUrl(photo.storage_path, 60 * 60);
+
+    if (error) return "";
+
+    return `
+      <figure class="photo-card" data-photo-id="${escapeAttribute(photo.id)}">
+        <img src="${escapeAttribute(data.signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
+        <figcaption>${escapeText(photo.caption || "没有配文，也已经很好。")}</figcaption>
+      </figure>
+    `;
+  }));
+
+  photoGrid.innerHTML = cards.join("");
+}
+
+async function prependPhoto(photo) {
+  const { data, error } = await client
+    .storage
+    .from(config.storageBucket || "couple-photos")
+    .createSignedUrl(photo.storage_path, 60 * 60);
+
+  if (error) return;
+
+  const empty = photoGrid.querySelector(".empty-chat");
+  if (empty) empty.remove();
+
+  const figure = document.createElement("figure");
+  figure.className = "photo-card";
+  figure.dataset.photoId = photo.id;
+  figure.innerHTML = `
+    <img src="${escapeAttribute(data.signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
+    <figcaption>${escapeText(photo.caption || "没有配文，也已经很好。")}</figcaption>
+  `;
+  photoGrid.prepend(figure);
+}
+
+function renderPlaces(places) {
+  memoryMap.querySelectorAll(".map-pin.saved").forEach((pin) => pin.remove());
+
+  if (!places.length) {
+    placeList.innerHTML = '<p class="empty-chat">还没有点亮地点。</p>';
+    return;
+  }
+
+  placeList.innerHTML = places.map((place) => `
+    <article class="place-item">
+      <strong>${escapeText(place.title)}</strong>
+      <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
+    </article>
+  `).join("");
+
+  for (const place of places) {
+    addPlacePin(place);
+  }
+}
+
+function addPlacePin(place) {
+  if (memoryMap.querySelector(`[data-place-id="${place.id}"]`)) return;
+
+  const pin = document.createElement("button");
+  pin.type = "button";
+  pin.className = "map-pin saved";
+  pin.dataset.placeId = place.id;
+  pin.style.setProperty("--x", `${place.x_percent}%`);
+  pin.style.setProperty("--y", `${place.y_percent}%`);
+  pin.setAttribute("aria-label", place.title);
+  pin.title = `${place.title} · ${place.note || ""}`;
+  memoryMap.appendChild(pin);
+}
+
+function prependPlace(place) {
+  const empty = placeList.querySelector(".empty-chat");
+  if (empty) empty.remove();
+
+  addPlacePin(place);
+
+  const item = document.createElement("article");
+  item.className = "place-item";
+  item.innerHTML = `
+    <strong>${escapeText(place.title)}</strong>
+    <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
+  `;
+  placeList.prepend(item);
 }
 
 async function ensureProfile(displayName = "") {
@@ -149,36 +357,97 @@ async function loadMessages() {
   setStatus(chatStatus, "实时同步已开启。");
 }
 
-function subscribeMessages() {
-  if (messagesChannel) client.removeChannel(messagesChannel);
+async function loadNotes() {
+  const { data, error } = await client
+    .from("couple_notes")
+    .select("id, body, tone, created_at, user_id, display_name")
+    .eq("couple_id", config.coupleId)
+    .order("created_at", { ascending: false })
+    .limit(80);
 
-  messagesChannel = client
-    .channel(`couple-messages-${config.coupleId}`)
+  if (error) throw error;
+  renderNotes(data || []);
+  setStatus(noteStatus, "便签墙已同步。");
+}
+
+async function loadPhotos() {
+  const { data, error } = await client
+    .from("couple_photos")
+    .select("id, storage_path, caption, created_at, user_id, display_name")
+    .eq("couple_id", config.coupleId)
+    .order("created_at", { ascending: false })
+    .limit(80);
+
+  if (error) throw error;
+  await renderPhotos(data || []);
+  setStatus(photoStatus, "照片墙已同步。");
+}
+
+async function loadPlaces() {
+  const { data, error } = await client
+    .from("couple_places")
+    .select("id, title, note, visited_on, x_percent, y_percent, created_at")
+    .eq("couple_id", config.coupleId)
+    .order("created_at", { ascending: false })
+    .limit(120);
+
+  if (error) throw error;
+  renderPlaces(data || []);
+  setStatus(placeStatus, "足迹地图已同步。");
+}
+
+async function loadPrivateSpace() {
+  await loadMessages();
+  await Promise.all([loadNotes(), loadPhotos(), loadPlaces()]);
+}
+
+function subscribePrivateSpace() {
+  if (liveChannel) client.removeChannel(liveChannel);
+
+  liveChannel = client
+    .channel(`couple-space-${config.coupleId}`)
     .on(
       "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "couple_messages",
-        filter: `couple_id=eq.${config.coupleId}`
-      },
+      { event: "INSERT", schema: "public", table: "couple_messages", filter: `couple_id=eq.${config.coupleId}` },
       (payload) => {
-        if (!document.querySelector(`[data-message-id="${payload.new.id}"]`)) {
-          appendMessage(payload.new);
-        }
+        if (!document.querySelector(`[data-message-id="${payload.new.id}"]`)) appendMessage(payload.new);
       }
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "couple_notes", filter: `couple_id=eq.${config.coupleId}` },
+      (payload) => appendNote(payload.new)
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "couple_photos", filter: `couple_id=eq.${config.coupleId}` },
+      (payload) => prependPhoto(payload.new)
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "couple_places", filter: `couple_id=eq.${config.coupleId}` },
+      (payload) => prependPlace(payload.new)
     )
     .subscribe((status) => {
       if (status === "CHANNEL_ERROR") {
-        setStatus(chatStatus, "实时连接失败，但刷新后仍可读取消息。", true);
+        setStatus(chatStatus, "实时连接失败，但刷新后仍可读取内容。", true);
       }
     });
 }
 
-async function bootChat() {
+async function bootPrivateSpace() {
+  renderPlaylists();
+  renderNotes([]);
+  await renderPhotos([]);
+  renderPlaces([]);
+  setMemberFeaturesEnabled(false);
+
   if (!supabaseReady) {
     showChat(false);
     setStatus(authStatus, "聊天后端还没配置。请先在 Supabase 建表，然后把 config.js 里的项目地址和 anon key 填上。", true);
+    setStatus(noteStatus, "登录后可以写便签。");
+    setStatus(photoStatus, "登录后可以上传照片。");
+    setStatus(placeStatus, "登录后可以点亮地点。");
     authForm.querySelectorAll("input, button").forEach((item) => {
       item.disabled = true;
     });
@@ -200,13 +469,19 @@ async function bootChat() {
     try {
       await ensureProfile();
       showChat(true);
-      await loadMessages();
-      subscribeMessages();
+      setMemberFeaturesEnabled(true);
+      await loadPrivateSpace();
+      subscribePrivateSpace();
     } catch (error) {
       showChat(false);
+      setMemberFeaturesEnabled(false);
       setStatus(authStatus, error.message, true);
       await client.auth.signOut();
     }
+  } else {
+    setStatus(noteStatus, "登录后可以写便签。");
+    setStatus(photoStatus, "登录后可以上传照片。");
+    setStatus(placeStatus, "登录后可以点亮地点。");
   }
 }
 
@@ -247,8 +522,9 @@ async function handleAuth(mode) {
   try {
     await ensureProfile(displayName);
     showChat(true);
-    await loadMessages();
-    subscribeMessages();
+    setMemberFeaturesEnabled(true);
+    await loadPrivateSpace();
+    subscribePrivateSpace();
     authForm.reset();
   } catch (error) {
     setStatus(authStatus, error.message, true);
@@ -285,13 +561,142 @@ messageForm.addEventListener("submit", async (event) => {
   setStatus(chatStatus, "已发送。");
 });
 
+noteForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!profile) return;
+
+  const formData = new FormData(noteForm);
+  const body = String(formData.get("body")).trim();
+  const tone = String(formData.get("tone") || "rose");
+  if (!body) return;
+
+  setStatus(noteStatus, "正在贴上墙...");
+  const { error } = await client.from("couple_notes").insert({
+    couple_id: config.coupleId,
+    user_id: session.user.id,
+    display_name: profile.display_name,
+    body,
+    tone
+  });
+
+  if (error) {
+    setStatus(noteStatus, error.message, true);
+    return;
+  }
+
+  noteForm.reset();
+  setStatus(noteStatus, "已经贴上去了。");
+});
+
+photoForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!profile) return;
+
+  const formData = new FormData(photoForm);
+  const file = formData.get("photo");
+  const caption = String(formData.get("caption") || "").trim();
+
+  if (!(file instanceof File) || !file.size) return;
+  if (!file.type.startsWith("image/")) {
+    setStatus(photoStatus, "只能上传图片文件。", true);
+    return;
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+  const storagePath = `${config.coupleId}/${session.user.id}/${Date.now()}-${safeName}`;
+
+  setStatus(photoStatus, "正在上传照片...");
+  const upload = await client
+    .storage
+    .from(config.storageBucket || "couple-photos")
+    .upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+
+  if (upload.error) {
+    setStatus(photoStatus, upload.error.message, true);
+    return;
+  }
+
+  const { error } = await client.from("couple_photos").insert({
+    couple_id: config.coupleId,
+    user_id: session.user.id,
+    display_name: profile.display_name,
+    storage_path: storagePath,
+    caption
+  });
+
+  if (error) {
+    setStatus(photoStatus, error.message, true);
+    return;
+  }
+
+  photoForm.reset();
+  setStatus(photoStatus, "照片已经放进墙里。");
+});
+
+placeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!profile) return;
+
+  const formData = new FormData(placeForm);
+  const title = String(formData.get("title")).trim();
+  const note = String(formData.get("note") || "").trim();
+  const visitedOn = String(formData.get("visitedOn") || "") || null;
+  const x = Number(formData.get("x") || 50);
+  const y = Number(formData.get("y") || 50);
+  if (!title) return;
+
+  setStatus(placeStatus, "正在点亮...");
+  const { error } = await client.from("couple_places").insert({
+    couple_id: config.coupleId,
+    user_id: session.user.id,
+    display_name: profile.display_name,
+    title,
+    note,
+    visited_on: visitedOn,
+    x_percent: x,
+    y_percent: y
+  });
+
+  if (error) {
+    setStatus(placeStatus, error.message, true);
+    return;
+  }
+
+  placeForm.reset();
+  placeForm.elements.x.value = x;
+  placeForm.elements.y.value = y;
+  setStatus(placeStatus, "这个地方亮起来了。");
+});
+
+memoryMap.addEventListener("click", (event) => {
+  const rect = memoryMap.getBoundingClientRect();
+  const x = Math.min(96, Math.max(4, ((event.clientX - rect.left) / rect.width) * 100));
+  const y = Math.min(96, Math.max(8, ((event.clientY - rect.top) / rect.height) * 100));
+
+  placeForm.elements.x.value = x.toFixed(2);
+  placeForm.elements.y.value = y.toFixed(2);
+  draftPin.style.setProperty("--x", `${x}%`);
+  draftPin.style.setProperty("--y", `${y}%`);
+});
+
 signOutButton.addEventListener("click", async () => {
-  if (messagesChannel) client.removeChannel(messagesChannel);
+  if (liveChannel) client.removeChannel(liveChannel);
   await client.auth.signOut();
   session = null;
   profile = null;
   showChat(false);
+  setMemberFeaturesEnabled(false);
+  renderMessages([]);
+  renderNotes([]);
+  await renderPhotos([]);
+  renderPlaces([]);
   setStatus(authStatus, "已经退出。");
+  setStatus(noteStatus, "登录后可以写便签。");
+  setStatus(photoStatus, "登录后可以上传照片。");
+  setStatus(placeStatus, "登录后可以点亮地点。");
 });
 
-bootChat();
+bootPrivateSpace();
