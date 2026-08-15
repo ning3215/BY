@@ -78,20 +78,19 @@
             <div>
               <p class="eyebrow">Sign in</p>
               <h3>先确认是我们的人</h3>
-              <p class="auth-copy">用你们在 Supabase 里允许的邮箱登录。第一次使用可以直接注册，同一个邮箱之后再登录即可。</p>
             </div>
             <form class="auth-form" data-auth-form>
               <label>
                 昵称
-                <input type="text" name="displayName" autocomplete="nickname" maxlength="24" placeholder="比如：宝宝 / 小太阳">
+                <input type="text" name="displayName" autocomplete="nickname" maxlength="24">
               </label>
               <label>
                 邮箱
-                <input type="email" name="email" autocomplete="email" required placeholder="you@example.com">
+                <input type="email" name="email" autocomplete="email" required>
               </label>
               <label>
                 密码
-                <input type="password" name="password" autocomplete="current-password" required minlength="6" placeholder="至少 6 位">
+                <input type="password" name="password" autocomplete="current-password" required minlength="6">
               </label>
               <div class="auth-actions">
                 <button class="button primary" type="submit" data-auth-mode="signin">登录</button>
