@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="一份只属于两个人的情侣小站，收藏纪念日、聊天、树洞、歌单、照片墙和足迹地图。">
+    <meta name="description" content="一份只属于两个人的情侣小站，收藏纪念日、聊天、树洞、歌单、照片墙和城市地图。">
     <title>慢慢喜欢你</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,13 +18,11 @@
       </a>
       <nav>
         <a href="#anniversary">纪念日</a>
-        <a href="#moments">瞬间</a>
         <a href="#chat">聊天</a>
         <a href="#notes">树洞</a>
-        <a href="#playlist">歌单</a>
+        <a href="#music">歌单</a>
         <a href="#gallery">照片</a>
-        <a href="#map">足迹</a>
-        <a href="#letter">情书</a>
+        <a href="#map">地图</a>
       </nav>
     </header>
 
@@ -36,12 +34,12 @@
           <p class="eyebrow">For every ordinary day we choose each other</p>
           <h1>把喜欢写成一座小小的网站</h1>
           <p class="hero-copy">
-            这里存放纪念日、聊天、悄悄话、歌单、照片和一起走过的地方，
-            以及每一天都想重新说一遍的：我喜欢你。
+            这里存放纪念日、聊天、树洞、歌单、照片和城市地图，
+            把每一天都过成只属于我们的版本。
           </p>
           <div class="hero-actions">
             <a class="button primary" href="#chat">进入我们的聊天室</a>
-            <a class="button ghost" href="#letter">打开情书</a>
+            <a class="button ghost" href="#music">打开歌单</a>
           </div>
         </div>
       </section>
@@ -64,47 +62,6 @@
             <span>倒计时</span>
             <strong><span id="nextAnniversaryCountdown">0</span> 天</strong>
           </article>
-        </div>
-      </section>
-
-      <section class="moments section" id="moments">
-        <div class="section-heading">
-          <p class="eyebrow">Tiny sparks</p>
-          <h2>值得反复想起的瞬间</h2>
-        </div>
-        <div class="moment-grid">
-          <article class="moment-card coral">
-            <span>01</span>
-            <h3>第一次牵手</h3>
-            <p>掌心有一点紧张，却好像终于找到了回家的方向。</p>
-          </article>
-          <article class="moment-card teal">
-            <span>02</span>
-            <h3>一起看日落</h3>
-            <p>天色慢下来，城市也安静下来，只剩下我们把晚风分享。</p>
-          </article>
-          <article class="moment-card gold">
-            <span>03</span>
-            <h3>深夜电话</h3>
-            <p>没有大事，只是听见你的声音，就觉得今天圆满了。</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="promise section" id="promise">
-        <div class="promise-copy">
-          <p class="eyebrow">Our little promises</p>
-          <h2>以后也一起</h2>
-          <p>
-            一起吃没排上的店，一起去海边吹风，一起在周末睡到自然醒。
-            把很远的以后拆成很多个今天，然后慢慢实现。
-          </p>
-        </div>
-        <div class="promise-list" aria-label="情侣约定清单">
-          <label><input type="checkbox" checked> 拍一组真正喜欢的合照</label>
-          <label><input type="checkbox" checked> 一起做一次饭</label>
-          <label><input type="checkbox"> 去看海边的日出</label>
-          <label><input type="checkbox"> 存一整年的电影票</label>
         </div>
       </section>
 
@@ -188,12 +145,20 @@
         </div>
       </section>
 
-      <section class="playlist section" id="playlist">
+      <section class="music section" id="music">
         <div class="section-heading">
           <p class="eyebrow">Shared songs</p>
           <h2>共享歌单</h2>
         </div>
-        <div class="playlist-grid" data-playlist-list></div>
+        <div class="music-stage">
+          <div class="music-copy">
+            <p>
+              你们喜欢的歌会一直挂在页面里，像一个随时能打开的背景音。
+              晚风、路灯和某一首歌，都会把时间带回某一天。
+            </p>
+          </div>
+          <div class="music-player" data-music-player></div>
+        </div>
       </section>
 
       <section class="gallery section" id="gallery">
@@ -216,22 +181,27 @@
         <div class="photo-grid" data-photo-grid aria-live="polite"></div>
       </section>
 
-      <section class="footprints section" id="map">
+      <section class="city-map section" id="map">
         <div class="footprint-copy">
           <p class="eyebrow">Our map</p>
-          <h2>一起点亮去过的地方</h2>
+          <h2>城市地图</h2>
+          <p class="map-intro">点一下地图就能选位置，保存后可手动点亮或熄灭城市。</p>
           <form class="place-form panel" data-place-form>
             <label>
-              地点
-              <input type="text" name="title" maxlength="40" placeholder="比如：第一次约会的咖啡店" required>
+              城市
+              <input type="text" name="title" maxlength="40" placeholder="比如：广州 / 重庆" required>
+            </label>
+            <label>
+              一句话
+              <input type="text" name="note" maxlength="100" placeholder="那天发生了什么">
+            </label>
+            <label class="city-switch">
+              <input type="checkbox" name="isLit" checked>
+              <span>默认点亮</span>
             </label>
             <label>
               日期
               <input type="date" name="visitedOn">
-            </label>
-            <label>
-              备注
-              <input type="text" name="note" maxlength="100" placeholder="那天发生了什么">
             </label>
             <input type="hidden" name="x" value="50">
             <input type="hidden" name="y" value="50">
@@ -240,29 +210,14 @@
           </form>
         </div>
         <div class="map-wrap">
-          <div class="memory-map" data-memory-map aria-label="足迹地图">
-            <span class="map-route one" aria-hidden="true"></span>
-            <span class="map-route two" aria-hidden="true"></span>
-            <button class="map-pin draft" type="button" data-draft-pin aria-label="新足迹位置"></button>
+          <div class="memory-map" data-memory-map aria-label="城市地图">
+            <div class="map-backdrop" aria-hidden="true"></div>
+            <div class="map-grid" aria-hidden="true"></div>
+            <div class="map-ring one" aria-hidden="true"></div>
+            <div class="map-ring two" aria-hidden="true"></div>
+            <button class="map-pin draft" type="button" data-draft-pin aria-label="新城市位置"></button>
           </div>
           <div class="place-list" data-place-list></div>
-        </div>
-      </section>
-
-      <section class="letter section" id="letter">
-        <div class="letter-paper">
-          <p class="eyebrow">To my favorite person</p>
-          <h2>给你的一封小情书</h2>
-          <p>
-            遇见你以后，很多平凡的小事都变得发亮。早餐、路灯、雨声、
-            回家路上的消息提示，都像在提醒我：世界上有一个人，正在和我认真相爱。
-          </p>
-          <p>
-            我想和你保留一点幼稚，也练习很多温柔。想在争吵后更快拥抱，
-            在忙碌里记得问候，在漫长岁月里仍然把你放在第一顺位。
-          </p>
-          <button class="button primary" id="surpriseButton" type="button">今天的悄悄话</button>
-          <p class="whisper" id="whisper" aria-live="polite">你出现以后，喜欢就有了具体的名字。</p>
         </div>
       </section>
     </main>

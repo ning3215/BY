@@ -1,6 +1,6 @@
 # 慢慢喜欢你
 
-一个关于情侣纪念、回忆、约定、情书、私密聊天、树洞便签、共享歌单、照片墙和足迹地图的小网站。
+一个关于情侣纪念、私密聊天、树洞便签、共享歌单、照片墙和城市地图的小网站。
 
 ## 本地预览
 
@@ -8,7 +8,7 @@
 
 ## 开启聊天
 
-聊天、树洞便签、照片墙和足迹地图使用 Supabase 登录、数据库、实时订阅和 Storage。前端可以继续部署在 GitHub Pages，但需要先配置 Supabase。
+聊天、树洞便签、照片墙和城市地图使用 Supabase 登录、数据库、实时订阅和 Storage。前端可以继续部署在 GitHub Pages，但需要先配置 Supabase。
 
 1. 在 Supabase 新建项目。
 2. 打开 SQL Editor，复制并运行 `supabase/schema.sql`。
@@ -22,18 +22,11 @@ window.LOVE_SITE_CONFIG = {
   coupleId: "093f97bb-50be-4bab-9c06-b32d508e2410",
   startDate: "2020-01-12",
   storageBucket: "couple-photos",
-  playlists: [
-    {
-      title: "我们的网易云歌单",
-      provider: "NetEase Cloud Music",
-      embedUrl: "你的网易云 iframe 地址"
-    },
-    {
-      title: "我们的 Spotify 歌单",
-      provider: "Spotify",
-      embedUrl: "你的 Spotify iframe 地址"
-    }
-  ]
+  music: {
+    title: "我们的歌单",
+    provider: "网易云 / QQ音乐",
+    embedUrl: "你的网易云或 QQ 音乐 iframe 地址"
+  }
 };
 ```
 
@@ -48,12 +41,12 @@ window.LOVE_SITE_CONFIG = {
 
 - 纪念日倒计时：恋爱开始日是 `2020-01-12`，自动计算恋爱天数和下一个周年纪念日。
 - 留言板/树洞：登录后可以把便签贴到墙上。
-- 共享歌单：在 `config.js` 填入网易云或 Spotify 的 iframe 嵌入地址。
+- 共享歌单：在 `config.js` 填入网易云或 QQ 音乐的 iframe 嵌入地址。
 - 照片墙：登录后可以上传图片到 Supabase Storage 私有桶。
-- 足迹地图：点击地图位置，再填写地点信息即可点亮。
+- 城市地图：点击地图位置添加城市，之后可以手动点亮或熄灭。
 
 ## 自定义
 
-- 修改 `index.html` 里的日期、回忆、约定和情书内容。
+- 修改 `index.html` 里的标题、入口文案和页面结构。
 - 替换 `assets/hero.png` 可以更换首页主视觉。
 - 修改 `styles.css` 可以调整配色和排版。

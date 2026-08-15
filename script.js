@@ -33,23 +33,6 @@ document.getElementById("nextAnniversaryDate").textContent = new Intl.DateTimeFo
 }).format(anniversary.next);
 document.getElementById("nextAnniversaryCountdown").textContent = anniversary.countdown;
 
-const whispers = [
-  "今天也想认真地偏爱你。",
-  "见到你之前，我没想过平凡也可以这么浪漫。",
-  "我喜欢我们，也喜欢那个和你在一起时更柔软的自己。",
-  "慢慢来吧，反正最想去的未来是有你的未来。",
-  "你一笑，今天就有了最好的结尾。"
-];
-
-const button = document.getElementById("surpriseButton");
-const whisper = document.getElementById("whisper");
-let whisperIndex = 0;
-
-button.addEventListener("click", () => {
-  whisperIndex = (whisperIndex + 1) % whispers.length;
-  whisper.textContent = whispers[whisperIndex];
-});
-
 const supabaseReady = Boolean(
   window.supabase &&
   config.supabaseUrl &&
@@ -70,7 +53,7 @@ const signOutButton = document.querySelector("[data-signout]");
 const noteForm = document.querySelector("[data-note-form]");
 const noteStatus = document.querySelector("[data-note-status]");
 const notesWall = document.querySelector("[data-notes-wall]");
-const playlistList = document.querySelector("[data-playlist-list]");
+const musicPlayer = document.querySelector("[data-music-player]");
 const photoForm = document.querySelector("[data-photo-form]");
 const photoStatus = document.querySelector("[data-photo-status]");
 const photoGrid = document.querySelector("[data-photo-grid]");
@@ -132,29 +115,28 @@ function setMemberFeaturesEnabled(isEnabled) {
   });
 }
 
-function renderPlaylists() {
-  const playlists = Array.isArray(config.playlists) ? config.playlists : [];
-  playlistList.innerHTML = playlists.map((playlist) => {
-    if (playlist.embedUrl) {
-      return `
-        <article class="playlist-card">
-          <iframe
-            title="${escapeAttribute(playlist.title)}"
-            src="${escapeAttribute(playlist.embedUrl)}"
-            loading="lazy"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
-          </iframe>
-        </article>
-      `;
-    }
+function renderMusic() {
+  const music = config.music || {};
 
-    return `
-      <article class="playlist-card playlist-empty">
-        <strong>${escapeText(playlist.title)}</strong>
-        <span>${escapeText(playlist.provider)} 的位置已经留好。</span>
-      </article>
+  if (music.embedUrl) {
+    musicPlayer.innerHTML = `
+      <iframe
+        title="${escapeAttribute(music.title || "我们的歌单")}"
+        src="${escapeAttribute(music.embedUrl)}"
+        loading="lazy"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
+      </iframe>
     `;
-  }).join("");
+    return;
+  }
+
+  musicPlayer.innerHTML = `
+    <div class="music-empty">
+      <span>${escapeText(music.provider || "网易云 / QQ音乐")}</span>
+      <strong>${escapeText(music.title || "我们的歌单")}</strong>
+      <p>这块位置留给我们的背景音。等歌单接上以后，页面会自己唱起来。</p>
+    </div>
+  `;
 }
 
 function renderMessages(messages) {
@@ -268,33 +250,45 @@ function renderPlaces(places) {
   memoryMap.querySelectorAll(".map-pin.saved").forEach((pin) => pin.remove());
 
   if (!places.length) {
-    placeList.innerHTML = '<p class="empty-chat">还没有点亮地点。</p>';
+    placeList.innerHTML = '<p class="empty-chat">还没有城市。先在地图上点一个位置，再写下城市名。</p>';
     return;
   }
 
-  placeList.innerHTML = places.map((place) => `
-    <article class="place-item">
-      <strong>${escapeText(place.title)}</strong>
-      <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
-    </article>
-  `).join("");
+  placeList.innerHTML = places.map(renderPlaceItem).join("");
 
   for (const place of places) {
     addPlacePin(place);
   }
 }
 
+function renderPlaceItem(place) {
+  const isLit = place.is_lit !== false;
+  return `
+    <article class="place-item ${isLit ? "lit" : "dim"}" data-place-card="${escapeAttribute(place.id)}">
+      <div>
+        <strong>${escapeText(place.title)}</strong>
+        <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
+      </div>
+      <button class="city-light-button" type="button" data-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
+        ${isLit ? "熄灭" : "点亮"}
+      </button>
+    </article>
+  `;
+}
+
 function addPlacePin(place) {
   if (memoryMap.querySelector(`[data-place-id="${place.id}"]`)) return;
 
+  const isLit = place.is_lit !== false;
   const pin = document.createElement("button");
   pin.type = "button";
-  pin.className = "map-pin saved";
+  pin.className = `map-pin saved ${isLit ? "lit" : "dim"}`;
   pin.dataset.placeId = place.id;
+  pin.dataset.nextLit = isLit ? "false" : "true";
   pin.style.setProperty("--x", `${place.x_percent}%`);
   pin.style.setProperty("--y", `${place.y_percent}%`);
   pin.setAttribute("aria-label", place.title);
-  pin.title = `${place.title} · ${place.note || ""}`;
+  pin.title = `${place.title} · ${isLit ? "已点亮" : "已熄灭"}`;
   memoryMap.appendChild(pin);
 }
 
@@ -304,13 +298,7 @@ function prependPlace(place) {
 
   addPlacePin(place);
 
-  const item = document.createElement("article");
-  item.className = "place-item";
-  item.innerHTML = `
-    <strong>${escapeText(place.title)}</strong>
-    <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
-  `;
-  placeList.prepend(item);
+  placeList.insertAdjacentHTML("afterbegin", renderPlaceItem(place));
 }
 
 async function ensureProfile(displayName = "") {
@@ -386,14 +374,14 @@ async function loadPhotos() {
 async function loadPlaces() {
   const { data, error } = await client
     .from("couple_places")
-    .select("id, title, note, visited_on, x_percent, y_percent, created_at")
+    .select("id, title, note, visited_on, x_percent, y_percent, is_lit, created_at")
     .eq("couple_id", config.coupleId)
     .order("created_at", { ascending: false })
     .limit(120);
 
   if (error) throw error;
   renderPlaces(data || []);
-  setStatus(placeStatus, "足迹地图已同步。");
+  setStatus(placeStatus, "城市地图已同步。");
 }
 
 async function loadPrivateSpace() {
@@ -428,6 +416,11 @@ function subscribePrivateSpace() {
       { event: "INSERT", schema: "public", table: "couple_places", filter: `couple_id=eq.${config.coupleId}` },
       (payload) => prependPlace(payload.new)
     )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "couple_places", filter: `couple_id=eq.${config.coupleId}` },
+      () => loadPlaces()
+    )
     .subscribe((status) => {
       if (status === "CHANNEL_ERROR") {
         setStatus(chatStatus, "实时连接失败，但刷新后仍可读取内容。", true);
@@ -436,7 +429,7 @@ function subscribePrivateSpace() {
 }
 
 async function bootPrivateSpace() {
-  renderPlaylists();
+  renderMusic();
   renderNotes([]);
   await renderPhotos([]);
   renderPlaces([]);
@@ -447,7 +440,7 @@ async function bootPrivateSpace() {
     setStatus(authStatus, "聊天后端还没配置。请先在 Supabase 建表，然后把 config.js 里的项目地址和 anon key 填上。", true);
     setStatus(noteStatus, "登录后可以写便签。");
     setStatus(photoStatus, "登录后可以上传照片。");
-    setStatus(placeStatus, "登录后可以点亮地点。");
+    setStatus(placeStatus, "登录后可以点亮城市。");
     authForm.querySelectorAll("input, button").forEach((item) => {
       item.disabled = true;
     });
@@ -481,7 +474,7 @@ async function bootPrivateSpace() {
   } else {
     setStatus(noteStatus, "登录后可以写便签。");
     setStatus(photoStatus, "登录后可以上传照片。");
-    setStatus(placeStatus, "登录后可以点亮地点。");
+    setStatus(placeStatus, "登录后可以点亮城市。");
   }
 }
 
@@ -646,9 +639,10 @@ placeForm.addEventListener("submit", async (event) => {
   const visitedOn = String(formData.get("visitedOn") || "") || null;
   const x = Number(formData.get("x") || 50);
   const y = Number(formData.get("y") || 50);
+  const isLit = formData.get("isLit") === "on";
   if (!title) return;
 
-  setStatus(placeStatus, "正在点亮...");
+  setStatus(placeStatus, "正在保存城市...");
   const { error } = await client.from("couple_places").insert({
     couple_id: config.coupleId,
     user_id: session.user.id,
@@ -657,7 +651,8 @@ placeForm.addEventListener("submit", async (event) => {
     note,
     visited_on: visitedOn,
     x_percent: x,
-    y_percent: y
+    y_percent: y,
+    is_lit: isLit
   });
 
   if (error) {
@@ -668,10 +663,36 @@ placeForm.addEventListener("submit", async (event) => {
   placeForm.reset();
   placeForm.elements.x.value = x;
   placeForm.elements.y.value = y;
-  setStatus(placeStatus, "这个地方亮起来了。");
+  placeForm.elements.isLit.checked = true;
+  setStatus(placeStatus, "城市已经放到地图上了。");
 });
 
+async function togglePlaceLit(placeId, nextLit) {
+  if (!profile) return;
+
+  setStatus(placeStatus, nextLit ? "正在点亮城市..." : "正在熄灭城市...");
+  const { error } = await client
+    .from("couple_places")
+    .update({ is_lit: nextLit })
+    .eq("id", placeId)
+    .eq("couple_id", config.coupleId);
+
+  if (error) {
+    setStatus(placeStatus, error.message, true);
+    return;
+  }
+
+  await loadPlaces();
+  setStatus(placeStatus, nextLit ? "城市亮起来了。" : "城市已经熄灭。");
+}
+
 memoryMap.addEventListener("click", (event) => {
+  const savedPin = event.target.closest(".map-pin.saved");
+  if (savedPin) {
+    togglePlaceLit(savedPin.dataset.placeId, savedPin.dataset.nextLit === "true");
+    return;
+  }
+
   const rect = memoryMap.getBoundingClientRect();
   const x = Math.min(96, Math.max(4, ((event.clientX - rect.left) / rect.width) * 100));
   const y = Math.min(96, Math.max(8, ((event.clientY - rect.top) / rect.height) * 100));
@@ -680,6 +701,13 @@ memoryMap.addEventListener("click", (event) => {
   placeForm.elements.y.value = y.toFixed(2);
   draftPin.style.setProperty("--x", `${x}%`);
   draftPin.style.setProperty("--y", `${y}%`);
+});
+
+placeList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-toggle-place]");
+  if (!button) return;
+
+  togglePlaceLit(button.dataset.togglePlace, button.dataset.nextLit === "true");
 });
 
 signOutButton.addEventListener("click", async () => {
@@ -696,7 +724,7 @@ signOutButton.addEventListener("click", async () => {
   setStatus(authStatus, "已经退出。");
   setStatus(noteStatus, "登录后可以写便签。");
   setStatus(photoStatus, "登录后可以上传照片。");
-  setStatus(placeStatus, "登录后可以点亮地点。");
+  setStatus(placeStatus, "登录后可以点亮城市。");
 });
 
 bootPrivateSpace();

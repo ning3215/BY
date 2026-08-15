@@ -54,8 +54,12 @@ create table if not exists public.couple_places (
   visited_on date,
   x_percent numeric(5, 2) not null default 50 check (x_percent between 0 and 100),
   y_percent numeric(5, 2) not null default 50 check (y_percent between 0 and 100),
+  is_lit boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table public.couple_places
+add column if not exists is_lit boolean not null default true;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -249,6 +253,28 @@ with check (
   )
 );
 
+drop policy if exists "Couple can update places" on public.couple_places;
+create policy "Couple can update places"
+on public.couple_places
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.couple_profiles profile
+    where profile.user_id = auth.uid()
+      and profile.couple_id = couple_places.couple_id
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.couple_profiles profile
+    where profile.user_id = auth.uid()
+      and profile.couple_id = couple_places.couple_id
+  )
+);
+
 drop policy if exists "Couple can upload photos" on storage.objects;
 create policy "Couple can upload photos"
 on storage.objects
@@ -286,7 +312,7 @@ grant select, insert, update on public.couple_profiles to authenticated;
 grant select, insert on public.couple_messages to authenticated;
 grant select, insert on public.couple_notes to authenticated;
 grant select, insert on public.couple_photos to authenticated;
-grant select, insert on public.couple_places to authenticated;
+grant select, insert, update on public.couple_places to authenticated;
 
 do $$
 declare
