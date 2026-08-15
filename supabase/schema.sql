@@ -52,6 +52,8 @@ create table if not exists public.couple_places (
   title text not null check (char_length(title) between 1 and 40),
   note text check (char_length(note) <= 100),
   visited_on date,
+  latitude numeric(9, 6),
+  longitude numeric(9, 6),
   x_percent numeric(5, 2) not null default 50 check (x_percent between 0 and 100),
   y_percent numeric(5, 2) not null default 50 check (y_percent between 0 and 100),
   is_lit boolean not null default true,
@@ -60,6 +62,12 @@ create table if not exists public.couple_places (
 
 alter table public.couple_places
 add column if not exists is_lit boolean not null default true;
+
+alter table public.couple_places
+add column if not exists latitude numeric(9, 6);
+
+alter table public.couple_places
+add column if not exists longitude numeric(9, 6);
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

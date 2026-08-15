@@ -715,97 +715,86 @@ textarea:focus {
   gap: 18px;
 }
 
-.memory-map {
+.world-map {
   position: relative;
   min-height: 520px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  height: min(68vh, 680px);
+  border: 1px solid rgba(35, 33, 43, 0.12);
   border-radius: 8px;
   overflow: hidden;
-  background: #10141d;
+  background: #dce8df;
   box-shadow: var(--shadow);
-  cursor: crosshair;
 }
 
-.map-backdrop {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 24% 24%, rgba(230, 83, 106, 0.32), transparent 22%),
-    radial-gradient(circle at 72% 38%, rgba(27, 138, 132, 0.36), transparent 26%),
-    radial-gradient(circle at 44% 78%, rgba(215, 154, 43, 0.24), transparent 24%),
-    linear-gradient(135deg, #111827, #1f2937 46%, #17242b);
+.world-map .leaflet-control-attribution {
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
 }
 
-.map-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: radial-gradient(circle at center, #000 0 58%, transparent 88%);
-}
-
-.map-ring {
-  position: absolute;
-  width: 72%;
-  height: 36%;
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.16) transparent transparent transparent;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.map-ring.one {
-  left: 8%;
-  top: 18%;
-  transform: rotate(-14deg);
-}
-
-.map-ring.two {
-  right: -8%;
-  bottom: 8%;
-  transform: rotate(18deg);
-}
-
-.map-pin {
-  position: absolute;
-  left: var(--x, 50%);
-  top: var(--y, 50%);
+.city-marker {
+  position: relative;
+  display: block;
   width: 24px;
   aspect-ratio: 1;
   border: 3px solid #fff;
-  border-radius: 50% 50% 50% 0;
+  border-radius: 50%;
   background: var(--rose);
-  box-shadow: 0 10px 24px rgba(35, 33, 43, 0.22);
-  transform: translate(-50%, -100%) rotate(-45deg);
-  cursor: pointer;
-  z-index: 2;
+  box-shadow:
+    0 0 0 9px rgba(230, 83, 106, 0.18),
+    0 0 30px rgba(230, 83, 106, 0.78),
+    0 10px 22px rgba(35, 33, 43, 0.22);
 }
 
-.map-pin::after {
+.city-marker::after {
   content: "";
   position: absolute;
-  inset: 5px;
+  inset: 6px;
   border-radius: 50%;
   background: #fff;
 }
 
-.map-pin.draft {
-  background: var(--teal);
-}
-
-.map-pin.saved.lit {
-  background: var(--rose);
-  box-shadow:
-    0 0 0 10px rgba(230, 83, 106, 0.18),
-    0 0 34px rgba(230, 83, 106, 0.78);
-}
-
-.map-pin.saved.dim {
+.city-marker.dim {
   background: #667085;
-  opacity: 0.58;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  opacity: 0.7;
+  box-shadow:
+    0 0 0 7px rgba(102, 112, 133, 0.16),
+    0 8px 18px rgba(35, 33, 43, 0.18);
+}
+
+.city-marker.draft {
+  background: var(--teal);
+  box-shadow:
+    0 0 0 9px rgba(27, 138, 132, 0.18),
+    0 0 28px rgba(27, 138, 132, 0.7),
+    0 10px 22px rgba(35, 33, 43, 0.22);
+}
+
+.city-popup {
+  display: grid;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.city-popup strong {
+  color: var(--ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 16px;
+}
+
+.city-popup span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.city-popup button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--rose);
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .place-list {

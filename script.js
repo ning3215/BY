@@ -60,13 +60,15 @@ const photoGrid = document.querySelector("[data-photo-grid]");
 const placeForm = document.querySelector("[data-place-form]");
 const placeStatus = document.querySelector("[data-place-status]");
 const placeList = document.querySelector("[data-place-list]");
-const memoryMap = document.querySelector("[data-memory-map]");
-const draftPin = document.querySelector("[data-draft-pin]");
+const worldMapElement = document.querySelector("[data-world-map]");
 
 let client = null;
 let session = null;
 let profile = null;
 let liveChannel = null;
+let worldMap = null;
+let draftMarker = null;
+let placeMarkers = new Map();
 
 function setStatus(element, message, isError = false) {
   if (!element) return;
@@ -246,8 +248,67 @@ async function prependPhoto(photo) {
   photoGrid.prepend(figure);
 }
 
+function createCityIcon(isLit, isDraft = false) {
+  return L.divIcon({
+    className: "",
+    html: `<span class="city-marker ${isDraft ? "draft" : isLit ? "lit" : "dim"}"></span>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -10]
+  });
+}
+
+function getPlaceCoords(place) {
+  if (Number.isFinite(Number(place.latitude)) && Number.isFinite(Number(place.longitude))) {
+    return [Number(place.latitude), Number(place.longitude)];
+  }
+
+  const x = Number(place.x_percent ?? 50);
+  const y = Number(place.y_percent ?? 50);
+  const latitude = 85 - (Math.min(100, Math.max(0, y)) * 1.7);
+  const longitude = (Math.min(100, Math.max(0, x)) * 3.6) - 180;
+  return [latitude, longitude];
+}
+
+function initWorldMap() {
+  if (!worldMapElement || worldMap) return;
+  if (!window.L) {
+    setStatus(placeStatus, "世界地图资源加载失败，请刷新页面再试。", true);
+    return;
+  }
+
+  worldMap = L.map(worldMapElement, {
+    worldCopyJump: true,
+    zoomControl: true,
+    minZoom: 2
+  }).setView([28.4, 104.2], 4);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(worldMap);
+
+  draftMarker = L.marker([23.1291, 113.2644], {
+    icon: createCityIcon(true, true),
+    keyboard: false
+  }).addTo(worldMap);
+
+  draftMarker.bindPopup("新城市位置");
+
+  worldMap.on("click", (event) => {
+    placeForm.elements.latitude.value = event.latlng.lat.toFixed(6);
+    placeForm.elements.longitude.value = event.latlng.lng.toFixed(6);
+    draftMarker.setLatLng(event.latlng);
+    draftMarker.openPopup();
+  });
+
+  setTimeout(() => worldMap.invalidateSize(), 120);
+}
+
 function renderPlaces(places) {
-  memoryMap.querySelectorAll(".map-pin.saved").forEach((pin) => pin.remove());
+  initWorldMap();
+  placeMarkers.forEach((marker) => marker.remove());
+  placeMarkers = new Map();
 
   if (!places.length) {
     placeList.innerHTML = '<p class="empty-chat">还没有城市。先在地图上点一个位置，再写下城市名。</p>';
@@ -277,19 +338,34 @@ function renderPlaceItem(place) {
 }
 
 function addPlacePin(place) {
-  if (memoryMap.querySelector(`[data-place-id="${place.id}"]`)) return;
+  if (!worldMap || placeMarkers.has(place.id)) return;
 
   const isLit = place.is_lit !== false;
-  const pin = document.createElement("button");
-  pin.type = "button";
-  pin.className = `map-pin saved ${isLit ? "lit" : "dim"}`;
-  pin.dataset.placeId = place.id;
-  pin.dataset.nextLit = isLit ? "false" : "true";
-  pin.style.setProperty("--x", `${place.x_percent}%`);
-  pin.style.setProperty("--y", `${place.y_percent}%`);
-  pin.setAttribute("aria-label", place.title);
-  pin.title = `${place.title} · ${isLit ? "已点亮" : "已熄灭"}`;
-  memoryMap.appendChild(pin);
+  const [latitude, longitude] = getPlaceCoords(place);
+  const marker = L.marker([latitude, longitude], {
+    icon: createCityIcon(isLit),
+    title: place.title
+  });
+
+  marker.bindPopup(`
+    <div class="city-popup">
+      <strong>${escapeText(place.title)}</strong>
+      <span>${formatDate(place.visited_on)} · ${escapeText(place.note || "这里有我们一起到过的痕迹。")}</span>
+      <button type="button" data-popup-toggle-place="${escapeAttribute(place.id)}" data-next-lit="${isLit ? "false" : "true"}">
+        ${isLit ? "熄灭" : "点亮"}
+      </button>
+    </div>
+  `);
+
+  marker.on("popupopen", (event) => {
+    const button = event.popup.getElement().querySelector("[data-popup-toggle-place]");
+    button?.addEventListener("click", () => {
+      togglePlaceLit(button.dataset.popupTogglePlace, button.dataset.nextLit === "true");
+    });
+  });
+
+  marker.addTo(worldMap);
+  placeMarkers.set(place.id, marker);
 }
 
 function prependPlace(place) {
@@ -374,7 +450,7 @@ async function loadPhotos() {
 async function loadPlaces() {
   const { data, error } = await client
     .from("couple_places")
-    .select("id, title, note, visited_on, x_percent, y_percent, is_lit, created_at")
+    .select("id, title, note, visited_on, latitude, longitude, x_percent, y_percent, is_lit, created_at")
     .eq("couple_id", config.coupleId)
     .order("created_at", { ascending: false })
     .limit(120);
@@ -430,6 +506,7 @@ function subscribePrivateSpace() {
 
 async function bootPrivateSpace() {
   renderMusic();
+  initWorldMap();
   renderNotes([]);
   await renderPhotos([]);
   renderPlaces([]);
@@ -637,8 +714,8 @@ placeForm.addEventListener("submit", async (event) => {
   const title = String(formData.get("title")).trim();
   const note = String(formData.get("note") || "").trim();
   const visitedOn = String(formData.get("visitedOn") || "") || null;
-  const x = Number(formData.get("x") || 50);
-  const y = Number(formData.get("y") || 50);
+  const latitude = Number(formData.get("latitude") || 23.1291);
+  const longitude = Number(formData.get("longitude") || 113.2644);
   const isLit = formData.get("isLit") === "on";
   if (!title) return;
 
@@ -650,8 +727,8 @@ placeForm.addEventListener("submit", async (event) => {
     title,
     note,
     visited_on: visitedOn,
-    x_percent: x,
-    y_percent: y,
+    latitude,
+    longitude,
     is_lit: isLit
   });
 
@@ -661,8 +738,8 @@ placeForm.addEventListener("submit", async (event) => {
   }
 
   placeForm.reset();
-  placeForm.elements.x.value = x;
-  placeForm.elements.y.value = y;
+  placeForm.elements.latitude.value = latitude;
+  placeForm.elements.longitude.value = longitude;
   placeForm.elements.isLit.checked = true;
   setStatus(placeStatus, "城市已经放到地图上了。");
 });
@@ -685,23 +762,6 @@ async function togglePlaceLit(placeId, nextLit) {
   await loadPlaces();
   setStatus(placeStatus, nextLit ? "城市亮起来了。" : "城市已经熄灭。");
 }
-
-memoryMap.addEventListener("click", (event) => {
-  const savedPin = event.target.closest(".map-pin.saved");
-  if (savedPin) {
-    togglePlaceLit(savedPin.dataset.placeId, savedPin.dataset.nextLit === "true");
-    return;
-  }
-
-  const rect = memoryMap.getBoundingClientRect();
-  const x = Math.min(96, Math.max(4, ((event.clientX - rect.left) / rect.width) * 100));
-  const y = Math.min(96, Math.max(8, ((event.clientY - rect.top) / rect.height) * 100));
-
-  placeForm.elements.x.value = x.toFixed(2);
-  placeForm.elements.y.value = y.toFixed(2);
-  draftPin.style.setProperty("--x", `${x}%`);
-  draftPin.style.setProperty("--y", `${y}%`);
-});
 
 placeList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-toggle-place]");

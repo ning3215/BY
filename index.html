@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -185,7 +186,7 @@
         <div class="footprint-copy">
           <p class="eyebrow">Our map</p>
           <h2>城市地图</h2>
-          <p class="map-intro">点一下地图就能选位置，保存后可手动点亮或熄灭城市。</p>
+          <p class="map-intro">在真实世界地图上点一下选择城市位置，保存后可手动点亮或熄灭。</p>
           <form class="place-form panel" data-place-form>
             <label>
               城市
@@ -203,20 +204,14 @@
               日期
               <input type="date" name="visitedOn">
             </label>
-            <input type="hidden" name="x" value="50">
-            <input type="hidden" name="y" value="50">
+            <input type="hidden" name="latitude" value="23.1291">
+            <input type="hidden" name="longitude" value="113.2644">
             <button class="button primary" type="submit">点亮这里</button>
             <p class="form-status" data-place-status aria-live="polite"></p>
           </form>
         </div>
         <div class="map-wrap">
-          <div class="memory-map" data-memory-map aria-label="城市地图">
-            <div class="map-backdrop" aria-hidden="true"></div>
-            <div class="map-grid" aria-hidden="true"></div>
-            <div class="map-ring one" aria-hidden="true"></div>
-            <div class="map-ring two" aria-hidden="true"></div>
-            <button class="map-pin draft" type="button" data-draft-pin aria-label="新城市位置"></button>
-          </div>
+          <div class="world-map" id="worldMap" data-world-map aria-label="真实世界城市地图"></div>
           <div class="place-list" data-place-list></div>
         </div>
       </section>
@@ -228,6 +223,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
