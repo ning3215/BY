@@ -78,7 +78,7 @@ let selectedMapArea = null;
 let chinaMapZoom = 1.16;
 let chinaMapCenter = null;
 
-const chinaCityGeoUrl = "https://geo.datav.aliyun.com/areas_v3/bound/100000_full_city.json";
+const chinaCityGeoUrl = "assets/china-cities.json";
 
 function setStatus(element, message, isError = false) {
   if (!element) return;
@@ -623,6 +623,22 @@ function updateChinaMapView(nextZoom, nextCenter = chinaMapCenter) {
   renderChinaMap();
 }
 
+function getChinaMapViewOption() {
+  const option = {
+    zoom: chinaMapZoom,
+    scaleLimit: {
+      min: 0.9,
+      max: 6
+    }
+  };
+
+  if (Array.isArray(chinaMapCenter) && chinaMapCenter.length === 2) {
+    option.center = chinaMapCenter;
+  }
+
+  return option;
+}
+
 function renderChinaMap(places = currentPlaces) {
   if (!worldMap || !chinaGeoJson) return;
 
@@ -647,12 +663,7 @@ function renderChinaMap(places = currentPlaces) {
         type: "map",
         map: "china-cities-cartoon",
         roam: true,
-        zoom: chinaMapZoom,
-        center: chinaMapCenter,
-        scaleLimit: {
-          min: 0.9,
-          max: 6
-        },
+        ...getChinaMapViewOption(),
         selectedMode: false,
         layoutCenter: ["50%", "52%"],
         layoutSize: "112%",
