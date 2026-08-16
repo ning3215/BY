@@ -69,6 +69,16 @@ let liveChannel = null;
 let worldMap = null;
 let draftMarker = null;
 let placeMarkers = new Map();
+let photoAlbumItems = [];
+let currentPhotoPage = 0;
+let chinaGeoJson = null;
+let chinaGeoPromise = null;
+let currentPlaces = [];
+let selectedMapArea = null;
+let chinaMapZoom = 1.16;
+let chinaMapCenter = null;
+
+const chinaCityGeoUrl = "https://geo.datav.aliyun.com/areas_v3/bound/100000_full_city.json";
 
 function setStatus(element, message, isError = false) {
   if (!element) return;
@@ -102,6 +112,15 @@ function formatDate(value) {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatPhotoDate(value) {
+  if (!value) return "未写日期";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
 }
 
 function showChat(isSignedIn) {
@@ -248,6 +267,117 @@ async function prependPhoto(photo) {
   photoGrid.insertAdjacentHTML("afterbegin", renderPhotoCard(photo, data.signedUrl));
 }
 
+async function getPhotoWithSignedUrl(photo) {
+  const { data, error } = await client
+    .storage
+    .from(config.storageBucket || "couple-photos")
+    .createSignedUrl(photo.storage_path, 60 * 60);
+
+  if (error) return null;
+  return { ...photo, signedUrl: data.signedUrl };
+}
+
+async function renderPhotos(photos) {
+  if (!photos.length) {
+    photoAlbumItems = [];
+    currentPhotoPage = 0;
+    renderPhotoAlbum();
+    return;
+  }
+
+  const signedPhotos = await Promise.all(photos.map(getPhotoWithSignedUrl));
+  photoAlbumItems = signedPhotos.filter(Boolean);
+  currentPhotoPage = Math.min(currentPhotoPage, Math.max(photoAlbumItems.length - 1, 0));
+  renderPhotoAlbum();
+}
+
+function renderPhotoAlbum() {
+  if (!photoAlbumItems.length) {
+    photoGrid.innerHTML = '<div class="photo-album empty"><p class="empty-chat">照片墙正在等第一张照片。</p></div>';
+    return;
+  }
+
+  const photo = photoAlbumItems[currentPhotoPage];
+  const pageNumber = currentPhotoPage + 1;
+  const totalPages = photoAlbumItems.length;
+  const prevDisabled = currentPhotoPage === 0 ? "disabled" : "";
+  const nextDisabled = currentPhotoPage === totalPages - 1 ? "disabled" : "";
+
+  photoGrid.innerHTML = `
+    <div class="photo-album" data-photo-album>
+      <div class="album-toolbar">
+        <div>
+          <span>Photo album</span>
+          <strong>${pageNumber} / ${totalPages}</strong>
+        </div>
+        <div class="album-actions">
+          <button type="button" data-photo-prev ${prevDisabled}>上一页</button>
+          <button type="button" data-photo-next ${nextDisabled}>下一页</button>
+        </div>
+      </div>
+      <div class="album-book">
+        <button class="album-arrow album-arrow-prev" type="button" data-photo-prev ${prevDisabled} aria-label="上一页">‹</button>
+        <article class="album-page album-page-main">
+          <div class="album-photo-frame">
+            <img src="${escapeAttribute(photo.signedUrl)}" alt="${escapeAttribute(photo.caption || "我们的照片")}" loading="lazy">
+            <button class="photo-delete-button" type="button" data-delete-photo="${escapeAttribute(photo.id)}" data-photo-path="${escapeAttribute(photo.storage_path)}">删除</button>
+          </div>
+          <figcaption>
+            <strong>${formatPhotoDate(photo.created_at)}</strong>
+            <span>${escapeText(photo.caption || "没有配文，也已经很好。")}</span>
+          </figcaption>
+        </article>
+        <aside class="album-page album-page-side">
+          <div class="album-preview-grid">
+            ${renderAlbumPreview(currentPhotoPage - 1)}
+            ${renderAlbumPreview(currentPhotoPage + 1)}
+          </div>
+          <div class="album-note">
+            <strong>第 ${String(pageNumber).padStart(2, "0")} / ${String(totalPages).padStart(2, "0")} 页</strong>
+          </div>
+          <button class="album-delete-inline" type="button" data-delete-photo="${escapeAttribute(photo.id)}" data-photo-path="${escapeAttribute(photo.storage_path)}">删除这一页</button>
+        </aside>
+        <button class="album-arrow album-arrow-next" type="button" data-photo-next ${nextDisabled} aria-label="下一页">›</button>
+      </div>
+      <div class="album-strip" aria-label="照片缩略图">
+        ${photoAlbumItems.map(renderAlbumThumb).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderAlbumPreview(index) {
+  const photo = photoAlbumItems[index];
+  if (!photo) return '<div class="album-preview empty-preview">待翻到更多照片</div>';
+
+  return `
+    <button class="album-preview" type="button" data-photo-jump="${index}">
+      <img src="${escapeAttribute(photo.signedUrl)}" alt="${escapeAttribute(photo.caption || "照片预览")}" loading="lazy">
+      <span>${escapeText(photo.caption || formatPhotoDate(photo.created_at))}</span>
+    </button>
+  `;
+}
+
+function renderAlbumThumb(photo, index) {
+  const isActive = index === currentPhotoPage ? "is-active" : "";
+  return `
+    <button class="album-thumb ${isActive}" type="button" data-photo-jump="${index}" aria-label="查看第 ${index + 1} 张照片">
+      <img src="${escapeAttribute(photo.signedUrl)}" alt="${escapeAttribute(photo.caption || "照片缩略图")}" loading="lazy">
+    </button>
+  `;
+}
+
+async function prependPhoto(photo) {
+  if (photoAlbumItems.some((item) => item.id === photo.id)) return;
+
+  const signedPhoto = await getPhotoWithSignedUrl(photo);
+  if (!signedPhoto) return;
+
+  photoAlbumItems.unshift(signedPhoto);
+  currentPhotoPage = 0;
+  renderPhotoAlbum();
+}
+
 function createCityIcon(isLit, isDraft = false) {
   return L.divIcon({
     className: "",
@@ -388,6 +518,261 @@ function prependPlace(place) {
   addPlacePin(place);
 
   placeList.insertAdjacentHTML("afterbegin", renderPlaceItem(place));
+}
+
+async function loadChinaGeoJson() {
+  if (chinaGeoJson) return chinaGeoJson;
+  if (!chinaGeoPromise) {
+    chinaGeoPromise = fetch(chinaCityGeoUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error("中国地图数据加载失败");
+        return response.json();
+      })
+      .then((geoJson) => {
+        chinaGeoJson = geoJson;
+        return geoJson;
+      });
+  }
+
+  return chinaGeoPromise;
+}
+
+function normalizeMapName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/(特别行政区|自治州|自治县|地区|盟|市|县|区)$/u, "");
+}
+
+function findMatchedPlace(feature, places) {
+  const featureName = feature.properties?.name || "";
+  const featureCode = String(feature.properties?.adcode || "");
+  const normalizedFeatureName = normalizeMapName(featureName);
+
+  return places.find((place) => {
+    const title = normalizeMapName(place.title);
+    return title && (
+      title === normalizedFeatureName ||
+      String(place.title || "") === featureName ||
+      String(place.longitude || "") === featureCode
+    );
+  });
+}
+
+function getFeatureCenter(feature) {
+  const center = feature.properties?.center || feature.properties?.centroid;
+  if (Array.isArray(center) && center.length >= 2) {
+    return { longitude: Number(center[0]), latitude: Number(center[1]) };
+  }
+
+  return { longitude: 104.2, latitude: 35.8 };
+}
+
+function buildChinaMapData(places) {
+  if (!chinaGeoJson?.features) return [];
+
+  return chinaGeoJson.features.map((feature) => {
+    const name = feature.properties?.name || "";
+    const matchedPlace = findMatchedPlace(feature, places);
+    const isLit = Boolean(matchedPlace && matchedPlace.is_lit !== false);
+    const isSaved = Boolean(matchedPlace);
+    const isSelected = selectedMapArea?.name === name;
+    const areaColor = isLit
+      ? "#e6536a"
+      : isSelected
+        ? "#f2bd62"
+        : isSaved
+          ? "#d9e7e4"
+          : "#f7ebe6";
+
+    return {
+      name,
+      adcode: String(feature.properties?.adcode || ""),
+      value: isLit ? 2 : isSaved ? 1 : isSelected ? 0.5 : 0,
+      itemStyle: {
+        areaColor,
+        borderColor: "#ffffff",
+        borderWidth: isLit || isSelected ? 1.2 : 0.8,
+        shadowColor: isLit ? "rgba(230, 83, 106, 0.28)" : "rgba(35, 33, 43, 0.06)",
+        shadowBlur: isLit ? 14 : 4
+      },
+      label: {
+        show: isLit || isSelected,
+        color: isLit ? "#ffffff" : "#23212b",
+        fontWeight: 900,
+        fontSize: 11
+      }
+    };
+  });
+}
+
+function renderMapZoomControls() {
+  if (!worldMapElement || worldMapElement.querySelector("[data-map-zoom-controls]")) return;
+
+  worldMapElement.insertAdjacentHTML("beforeend", `
+    <div class="map-zoom-controls" data-map-zoom-controls aria-label="地图缩放">
+      <button type="button" data-map-zoom-in aria-label="放大地图">+</button>
+      <button type="button" data-map-zoom-out aria-label="缩小地图">-</button>
+      <button type="button" data-map-reset>复位</button>
+    </div>
+  `);
+}
+
+function updateChinaMapView(nextZoom, nextCenter = chinaMapCenter) {
+  chinaMapZoom = Math.min(6, Math.max(0.9, nextZoom));
+  chinaMapCenter = nextCenter;
+  renderChinaMap();
+}
+
+function renderChinaMap(places = currentPlaces) {
+  if (!worldMap || !chinaGeoJson) return;
+
+  worldMap.setOption({
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      formatter: (params) => {
+        const place = chinaGeoJson.features
+          .map((feature) => findMatchedPlace(feature, places))
+          .find((item) => item && normalizeMapName(item.title) === normalizeMapName(params.name));
+
+        if (place) {
+          return `${escapeText(params.name)}<br>${place.is_lit === false ? "已保存，未点亮" : "已经点亮"}`;
+        }
+
+        return `${escapeText(params.name)}<br>点击后可以添加到足迹`;
+      }
+    },
+    series: [
+      {
+        type: "map",
+        map: "china-cities-cartoon",
+        roam: true,
+        zoom: chinaMapZoom,
+        center: chinaMapCenter,
+        scaleLimit: {
+          min: 0.9,
+          max: 6
+        },
+        selectedMode: false,
+        layoutCenter: ["50%", "52%"],
+        layoutSize: "112%",
+        nameProperty: "name",
+        data: buildChinaMapData(places),
+        itemStyle: {
+          areaColor: "#f7ebe6",
+          borderColor: "#ffffff",
+          borderWidth: 0.8
+        },
+        emphasis: {
+          label: {
+            show: true,
+            color: "#23212b",
+            fontWeight: 900
+          },
+          itemStyle: {
+            areaColor: "#ffcfbd",
+            borderColor: "#ffffff",
+            borderWidth: 1.4,
+            shadowColor: "rgba(230, 83, 106, 0.28)",
+            shadowBlur: 18
+          }
+        }
+      }
+    ]
+  }, true);
+}
+
+function handleChinaMapClick(params) {
+  if (!params?.name || !chinaGeoJson?.features) return;
+
+  const feature = chinaGeoJson.features.find((item) => item.properties?.name === params.name);
+  if (!feature) return;
+
+  const center = getFeatureCenter(feature);
+  selectedMapArea = {
+    name: feature.properties?.name || params.name,
+    adcode: String(feature.properties?.adcode || ""),
+    ...center
+  };
+
+  placeForm.elements.title.value = selectedMapArea.name;
+  placeForm.elements.latitude.value = selectedMapArea.latitude;
+  placeForm.elements.longitude.value = selectedMapArea.longitude;
+  renderChinaMap();
+  setStatus(placeStatus, `已选中 ${selectedMapArea.name}，可以保存到足迹。`);
+}
+
+function syncChinaMapView() {
+  const option = worldMap?.getOption();
+  const series = option?.series?.[0];
+  if (!series) return;
+
+  if (Number.isFinite(Number(series.zoom))) {
+    chinaMapZoom = Number(series.zoom);
+  }
+
+  if (Array.isArray(series.center)) {
+    chinaMapCenter = series.center;
+  }
+}
+
+function initWorldMap() {
+  if (!worldMapElement || worldMap) return;
+  if (!window.echarts) {
+    setStatus(placeStatus, "中国地图资源加载失败，请刷新页面再试。", true);
+    return;
+  }
+
+  worldMap = echarts.init(worldMapElement, null, { renderer: "svg" });
+  worldMap.showLoading({
+    text: "正在展开中国地图...",
+    color: "#e6536a",
+    textColor: "#716a75",
+    maskColor: "rgba(255, 250, 247, 0.72)"
+  });
+
+  loadChinaGeoJson()
+    .then((geoJson) => {
+      echarts.registerMap("china-cities-cartoon", geoJson);
+      worldMap.hideLoading();
+      renderMapZoomControls();
+      worldMap.off("click");
+      worldMap.on("click", handleChinaMapClick);
+      worldMap.off("georoam");
+      worldMap.on("georoam", syncChinaMapView);
+      renderChinaMap(currentPlaces);
+    })
+    .catch((error) => {
+      worldMap.hideLoading();
+      setStatus(placeStatus, error.message, true);
+    });
+
+  window.addEventListener("resize", () => worldMap?.resize());
+  setTimeout(() => worldMap?.resize(), 120);
+}
+
+function renderPlaces(places) {
+  currentPlaces = places || [];
+  initWorldMap();
+
+  if (chinaGeoJson) renderChinaMap(currentPlaces);
+
+  if (!currentPlaces.length) {
+    placeList.innerHTML = '<p class="empty-chat">还没有城市。先在中国地图上点一个城市，再写下这一天。</p>';
+    return;
+  }
+
+  placeList.innerHTML = currentPlaces.map(renderPlaceItem).join("");
+}
+
+function addPlacePin() {
+  renderChinaMap(currentPlaces);
+}
+
+function prependPlace(place) {
+  if (currentPlaces.some((item) => item.id === place.id)) return;
+  currentPlaces = [place, ...currentPlaces];
+  renderPlaces(currentPlaces);
 }
 
 async function ensureProfile(displayName = "") {
@@ -837,7 +1222,47 @@ placeList.addEventListener("click", (event) => {
   deletePlace(deleteButton.dataset.deletePlace);
 });
 
+worldMapElement?.addEventListener("click", (event) => {
+  const zoomIn = event.target.closest("[data-map-zoom-in]");
+  if (zoomIn) {
+    updateChinaMapView(chinaMapZoom * 1.25);
+    return;
+  }
+
+  const zoomOut = event.target.closest("[data-map-zoom-out]");
+  if (zoomOut) {
+    updateChinaMapView(chinaMapZoom / 1.25);
+    return;
+  }
+
+  const reset = event.target.closest("[data-map-reset]");
+  if (reset) {
+    updateChinaMapView(1.16, null);
+  }
+});
+
 photoGrid.addEventListener("click", (event) => {
+  const previousButton = event.target.closest("[data-photo-prev]");
+  if (previousButton && !previousButton.disabled) {
+    currentPhotoPage = Math.max(currentPhotoPage - 1, 0);
+    renderPhotoAlbum();
+    return;
+  }
+
+  const nextButton = event.target.closest("[data-photo-next]");
+  if (nextButton && !nextButton.disabled) {
+    currentPhotoPage = Math.min(currentPhotoPage + 1, photoAlbumItems.length - 1);
+    renderPhotoAlbum();
+    return;
+  }
+
+  const jumpButton = event.target.closest("[data-photo-jump]");
+  if (jumpButton) {
+    currentPhotoPage = Number(jumpButton.dataset.photoJump);
+    renderPhotoAlbum();
+    return;
+  }
+
   const button = event.target.closest("[data-delete-photo]");
   if (!button) return;
 
